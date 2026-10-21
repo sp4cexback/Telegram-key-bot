@@ -2,15 +2,33 @@ import telebot
 import random
 import string
 from datetime import datetime, timedelta
-from flask import Flask
+from flask import Flask, request, jsonify
 from threading import Thread
 
-# --- Web Server to Keep Render Alive ---
+# --- Flask Web Sunucusu (Hem Render'ı Canlı Tutar Hem Lua API Görevi Görür) ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot Aktif!"
+    return "Bot ve API Aktif!"
+
+# Lua Scriptinin Key Doğrulama Yapacağı Adres
+@app.route('/verify', methods=['POST'])
+def verify_key():
+    data = request.json
+    key = data.get('key')
+    
+    if not key:
+        return jsonify({"status": "error", "message": "Key girilmedi!"}), 400
+        
+    if key in keys_db:
+        key_info = keys_db[key]
+        if datetime.now() < key_info["expires"]:
+            return jsonify({"status": "success", "message": "Key geçerli!"})
+        else:
+            return jsonify({"status": "error", "message": "Key süresi dolmuş!"})
+    else:
+        return jsonify({"status": "error", "message": "Geçersiz key!"})
 
 def run_web():
     app.run(host='0.0.0.0', port=8080)
@@ -19,11 +37,11 @@ def keep_alive():
     t = Thread(target=run_web)
     t.start()
 
-# --- Telegram Bot Setup ---
+# --- Telegram Bot Kodları ---
 TOKEN = "8855902728:AAE4lu0WAXU89fSJjR9mQLjvkRsK6afUwXM"
 bot = telebot.TeleBot(TOKEN)
 
-# Key Database (In-Memory)
+# Key Veritabanı
 keys_db = {}
 
 def generate_key(duration_type):
@@ -45,10 +63,7 @@ def generate_key(duration_type):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(
-        message, 
-        "👑 sp4ceX VIP Key Botuna Hoş Geldiniz!\n\nKomutlar:\n/gunluk - 1 Günlük Key\n/haftalik - 7 Günlük Key\n/aylik - 30 Günlük Key"
-    )
+    bot.reply_to(message, "👑 sp4ceX VIP Key Botuna Hoş Geldiniz!\n\nKomutlar:\n/gunluk - 1 Günlük Key\n/haftalik - 7 Günlük Key\n/aylik - 30 Günlük Key")
 
 @bot.message_handler(commands=['gunluk'])
 def get_daily_key(message):
